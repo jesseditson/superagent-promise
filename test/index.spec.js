@@ -16,6 +16,16 @@ function respondWith(res, status, body) {
   res.end(body);
 }
 
+const VERBS = [
+  'head',
+  'options',
+  'get',
+  'post',
+  'put',
+  'patch',
+  'del'
+];
+
 describe('superagent-promise', function() {
   // start the server
   var server;
@@ -83,15 +93,7 @@ describe('superagent-promise', function() {
   });
 
   describe('convenience methods', function() {
-    [
-      'head',
-      'options',
-      'get',
-      'post',
-      'put',
-      'patch',
-      'del'
-    ].forEach(function(method) {
+    VERBS.forEach(function(method) {
       describe('#'+method, function() {
         it('should have `then` and `end`', function() {
           var promiseRequest = request[method](baseURL);
@@ -108,19 +110,52 @@ describe('superagent-promise', function() {
           var p = request[method](baseURL).then(function() { });
           assert(p instanceof Promise);
         });
-      })
+      });
     });
   });
 
-  describe('inherited methods', function() {
-    it('should have an agent method', function() {
-      assert.equal(typeof request.agent, 'function')
+  describe('inherited members', function() {
+    it('should inherit all members except verbs and agent', function() {
+      for (var member in request) {
+        if (!~VERBS.indexOf(member) && member != 'agent') {
+          assert.equal(request[member], superagent[member])
+        }
+      }
     });
     it('should inherit new properties added to superagent', function() {
       superagent.foo = 'bar';
       var r = wrapRequest(superagent, Promise)
       assert.equal(r.foo, 'bar')
       delete superagent.foo
+    });
+  });
+
+  describe('#agent', function() {
+    it('should be a function', function() {
+      assert.equal(typeof request.agent, 'function')
+    });
+    VERBS.forEach(function(verb) {
+      describe('#' + verb, function() {
+        var agent;
+        var url = baseURL + '/success';
+        before(function() {
+          agent = request.agent()
+        })
+        it('should have `then` and `end`', function() {
+          var promiseRequest = agent[verb](baseURL);
+          assert(promiseRequest.then instanceof Function);
+          assert(promiseRequest.end instanceof Function);
+        });
+
+        it('should return a promise from `end`', function() {
+          var p = agent[verb](baseURL).end();
+          assert(p instanceof Promise);
+        });
+        it('should return a promise from `then`', function() {
+          var p = agent[verb](baseURL).then(function() { });
+          assert(p instanceof Promise);
+        });
+      });
     });
   });
 
